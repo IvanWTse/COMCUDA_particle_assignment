@@ -16,7 +16,7 @@
  * @param out_image_height The height of the final image to be output
  */
 void cuda_begin(const Particle* init_particles, unsigned int init_particles_count,
-    unsigned int out_image_width, unsigned int out_image_height);
+                unsigned int out_image_width, unsigned int out_image_height);
 /**
  * Create a locatlised histogram for each tile of the image
  */
@@ -36,6 +36,23 @@ void cuda_stage3();
  */
 void cuda_end(CImage *output_image);
 
+__global__ void stage1_calc_pixel_contribs(const Particle* __restrict__ particles, unsigned int* d_pixel_contribs);
+
+__global__ void stage2_calc_pixel_colour_depth(const Particle *__restrict__ particles, unsigned int *d_pixel_contribs,
+                                               unsigned int *d_pixel_index, unsigned char *d_pixel_contrib_colours,
+                                               float *d_pixel_contrib_depth);
+
+__device__ void selection_sort(float *data, unsigned char *d_pixel_contrib_colours, int left, int right);
+
+__device__ void
+cuda_quick_sort(float *d_pixel_contrib_depth, unsigned char *d_pixel_contrib_colours, int first, int last,
+                int depth = 0);
+
+__global__ void stage2_sort_pairs(float *d_pixel_contrib_depth, unsigned char *d_pixel_contrib_colours,
+                                  const unsigned int *__restrict__ d_pixel_index);
+
+__global__ void stage3_blend(unsigned char *d_output_image_data, unsigned char *d_pixel_contrib_colours,
+                             const unsigned int *__restrict__ d_pixel_index);
 
 /**
  * Error check function for safe CUDA API calling
@@ -54,9 +71,9 @@ void cuda_end(CImage *output_image);
 inline void gpuAssert(cudaError_t code, const char *file, int line) {
     if (code != cudaSuccess) {
         if (line >= 0) {
-            fprintf(stderr, "CUDA Error: %s(%d): %s", file, line, cudaGetErrorString(code));
+            fprintf(stderr, "CUDA Error: %s(%d): %s\n", file, line, cudaGetErrorString(code));
         } else {
-            fprintf(stderr, "CUDA Error: %s(%d): %s", file, line, cudaGetErrorString(code));
+            fprintf(stderr, "CUDA Error: %s(%d): %s\n", file, line, cudaGetErrorString(code));
         }
         exit(EXIT_FAILURE);
     }
